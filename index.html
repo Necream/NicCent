@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NicCent — Open Extension Ecosystem Powered by Coly</title>
+<meta name="description" content="NicCent — A state-driven extension ecosystem built on Coly. PAW, ColyServer, Scheduler, ColyVar and modular extensions." />
+<link rel="icon" href="data:;base64,iVBORw0KGgo=" />
+<style>
+  :root{
+    --bg:#050507;
+    --glass: rgba(255,255,255,0.03);
+    --card: rgba(255,255,255,0.025);
+    --accent1:#6ee7ff;
+    --accent2:#9b7bff;
+    --muted: rgba(230,238,248,0.65);
+    --glass-border: rgba(255,255,255,0.04);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  /* 整体滚动条宽度 */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  /* 滚动条轨道（背景） */
+  ::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0);
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+  }
+
+  /* 滚动条滑块 */
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #6ee7ff, #9b7bff);
+    border-radius: 10px;
+    box-shadow:
+      0 0 6px rgba(110,231,255,0.4),
+      0 0 12px rgba(155,123,255,0.25);
+    transition: all 0.5s ease;
+  }
+
+  /* hover 时白色光感描边 + 更亮的霓虹 */
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #9b7bff, #6ee7ff);
+    box-shadow:
+      0 0 10px rgba(255,255,255,0.6),
+      0 0 20px rgba(255,255,255,0.35),
+      0 0 40px rgba(110,231,255,0.4);
+  }
+
+  /* 页面基础与平滑背景渐变 */
+  html,body{height:100%;margin:0;color:#e6eef8;-webkit-font-smoothing:antialiased;}
+  body{
+    background: var(--bg);
+    position:relative;
+    overflow-x:hidden;
+  }
+  /* 大面积模糊渐变层，平滑过渡 */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:-30%;
+    z-index:0;
+    pointer-events:none;
+    background:
+      radial-gradient(900px 700px at 8% 12%, rgba(107,70,193,0.16), rgba(107,70,193,0.00) 28%),
+      radial-gradient(900px 700px at 92% 88%, rgba(59,130,246,0.10), rgba(59,130,246,0.00) 28%),
+      radial-gradient(1400px 800px at 50% 40%, rgba(110,231,255,0.04), rgba(155,123,255,0.00) 30%);
+    filter: blur(56px) saturate(1.05);
+    transform: scale(1.02);
+    opacity:0.98;
+    mix-blend-mode: screen;
+  }
+
+  /* 光感层（跟随鼠标） */
+  .light-layer{
+    position:fixed;
+    left:0;top:0;right:0;bottom:0;
+    pointer-events:none;
+    z-index:1;
+    mix-blend-mode:screen;
+    transition: opacity 300ms linear;
+    opacity:0;
+    will-change: transform, opacity;
+    backdrop-filter: blur(0px);
+  }
+  /* 内部使用伪元素绘制径向光晕，两个不同色调叠加 */
+  .light-layer::before,
+  .light-layer::after{
+    content:"";
+    position:absolute;
+    width:var(--light-size, 420px);
+    height:var(--light-size, 420px);
+    left:calc(var(--light-x, 50%) - var(--light-size, 420px)/2);
+    top:calc(var(--light-y, 50%) - var(--light-size, 420px)/2);
+    border-radius:50%;
+    transform: translate3d(0,0,0);
+    filter: blur(40px) saturate(1.2);
+    transition: width 300ms linear, height 300ms linear, left 120ms linear, top 120ms linear;
+    will-change: left, top, width, height, opacity;
+    opacity: var(--light-opacity, 0.6);
+    mix-blend-mode: screen;
+    pointer-events:none;
+  }
+  .light-layer::before{
+    background: radial-gradient(circle at 30% 30%, rgba(110,231,255,0.85), rgba(110,231,255,0.12) 30%, rgba(110,231,255,0.00) 70%);
+  }
+  .light-layer::after{
+    background: radial-gradient(circle at 70% 70%, rgba(155,123,255,0.75), rgba(155,123,255,0.10) 30%, rgba(155,123,255,0.00) 70%);
+    filter: blur(56px) saturate(1.1);
+  }
+
+  /* 在移动端降低强度 */
+  @media (max-width:720px){
+    .light-layer::before, .light-layer::after{filter: blur(28px); opacity:0.45;}
+  }
+
+  .container{max-width:1200px;margin:0 auto;padding:36px 20px;position:relative;z-index:2;}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .logo{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;color:#041025;font-family:monospace;box-shadow:0 6px 30px rgba(110,231,255,0.08);}
+  nav{display:flex;gap:10px;align-items:center;}
+  .btn{padding:10px 14px;border-radius:10px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:inherit;cursor:pointer;transition: box-shadow 0.5s ease,transform 0.5s ease,outline 0.5s ease,outline-offset 0.5s ease;}
+  .btn.primary{background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#041025;border:0;box-shadow:0 10px 40px rgba(155,123,255,0.06);}
+  .btn:hover {box-shadow:  0 0 12px rgba(255,255,255,0.55),  0 0 24px rgba(255,255,255,0.35),  0 0 48px rgba(255,255,255,0.18);transform: translateY(-2px);transition: box-shadow 0.5s ease, transform 0.5s ease;}
+
+  /* Hero */
+  .hero{display:grid;grid-template-columns:1fr 520px;gap:28px;align-items:center;padding:48px 0 28px 0;}
+  .hero-left h1{font-size:48px;margin:0 0 12px 0;letter-spacing:-1px;}
+  .hero-left p.lead{margin:0 0 18px 0;color:var(--muted);font-size:18px;line-height:1.45;}
+  .hero-visual{display:flex;align-items:center;justify-content:center;}
+  .orb-wrap{width:520px;height:360px;border-radius:16px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;box-shadow:0 10px 40px rgba(2,6,23,0.6);}
+  .orb-center{width:180px;height:180px;border-radius:50%;background:radial-gradient(circle at 30% 30%, var(--accent1), var(--accent2));box-shadow:0 20px 80px rgba(155,123,255,0.12);display:flex;align-items:center;justify-content:center;font-weight:800;color:#041025;font-family:monospace;font-size:28px;}
+  .orb-sub{position:absolute;left:18px;bottom:18px;color:var(--muted);font-size:13px;background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);}
+
+  /* sections */
+  section{padding:36px 0;border-top:1px solid rgba(255,255,255,0.02);}
+  .muted{color:var(--muted);}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .card{padding:16px;border-radius:12px;background:var(--card);border:1px solid rgba(255,255,255,0.02);box-shadow:0 6px 20px rgba(2,6,23,0.45);transition: box-shadow 0.5s ease,transform 0.5s ease,outline 0.5s ease,outline-offset 0.5s ease;}
+  .network-wrap{position:relative;height:420px;border-radius:12px;overflow:hidden;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);border:1px solid rgba(255,255,255,0.02);}
+  canvas{width:100%;height:100%;display:block;}
+  footer{padding:28px 0;color:rgba(230,238,248,0.6);font-size:13px;text-align:center;}
+
+  /* table styles */
+  .compare-table{width:100%;border-collapse:collapse;margin-top:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);border-radius:10px;overflow:hidden;}
+  .compare-table thead th{background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));text-align:left;padding:14px;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.03);}
+  .compare-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,0.02);vertical-align:top;color:rgba(230,238,248,0.9);}
+  .compare-table tbody tr:nth-child(odd){background:rgba(255,255,255,0.005);}
+  .small-muted{color:var(--muted);font-size:13px;}
+
+  /* 彩色卡片动画（持续变色） */
+  .rainbow-card{
+    padding:18px;border-radius:12px;color:#041025;font-weight:700;
+    background: linear-gradient(90deg,#ff7ab6,#ffd86b,#7ee7b8,#6ee7ff,#9b7bff);
+    background-size: 400% 400%;
+    animation: rainbowShift 8s linear infinite;
+    box-shadow: 0 8px 30px rgba(110,231,255,0.06);
+    display:flex;align-items:center;justify-content:center;height:100%;
+    transition: 
+    box-shadow 0.5s ease,
+    transform 0.5s ease,
+    outline 0.5s ease,
+    outline-offset 0.5s ease;
+  }
+  .rainbow-card:hover {
+  box-shadow:
+    0 0 12px rgba(255,255,255,0.55),
+    0 0 24px rgba(255,255,255,0.35),
+    0 0 48px rgba(255,255,255,0.18);
+  transform: translateY(-2px);
+  transition: box-shadow 0.5s ease, transform 0.5s ease;
+  }
+  .card:hover {
+  box-shadow:
+    0 0 12px rgba(255,255,255,0.55),
+    0 0 24px rgba(255,255,255,0.35),
+    0 0 48px rgba(255,255,255,0.18);
+  transform: translateY(-2px);
+  transition: box-shadow 0.5s ease, transform 0.5s ease;
+  }
+
+  @keyframes rainbowShift{
+    0%{background-position:0% 50%}
+    25%{background-position:50% 50%}
+    50%{background-position:100% 50%}
+    75%{background-position:50% 50%}
+    100%{background-position:0% 50%}
+  }
+
+  /* 即将推出标签 */
+  .coming-soon-badge{
+    display: inline-block;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #ff7ab6, #ffd86b, #7ee7b8, #6ee7ff, #9b7bff);
+    background-size: 400% 400%;
+    animation: rainbowShift 4s linear infinite;
+    color: #041025;
+    transform: skewX(-12deg);
+    box-shadow: 0 4px 16px rgba(110,231,255,0.3);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+  .coming-soon-badge:hover {
+    box-shadow: 0 6px 24px rgba(110,231,255,0.5);
+    transform: skewX(-12deg) translateY(-2px);
+  }
+
+  @media (max-width:980px){
+    .hero{grid-template-columns:1fr;gap:18px;}
+    .orb-wrap{height:320px;width:100%;}
+    .grid-3{grid-template-columns:1fr;}
+    .compare-table thead{display:none;}
+    .compare-table, .compare-table tbody, .compare-table tr, .compare-table td{display:block;width:100%;}
+    .compare-table tr{margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.03);}
+    .compare-table td{padding:10px 12px;}
+    .compare-table td::before{content:attr(data-label);display:block;font-weight:700;margin-bottom:6px;color:rgba(230,238,248,0.8);}
+  }
+
+  /* subtle particle layer */
+  #particles{position:fixed;inset:0;z-index:0;pointer-events:none;mix-blend-mode:screen;opacity:0.9;}
+  /* ---------- 强制响应式列与间距（覆盖内联或旧规则） ---------- */
+.grid-3 {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+
+/* 平板两列 */
+@media (max-width:1200px) {
+  .grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* 窄屏单列（确保每项占满一行，不重叠） */
+@media (max-width:980px) {
+  .grid-3 { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .grid-3 > * { width: 100% !important; max-width: 100% !important; }
+}
+
+/* ---------- 卡片基础与竖排保护 ---------- */
+/* 移除 height:100% 导致的塌陷，使用 min-height 保持弹性 */
+.rainbow-card {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 88px;        /* 保证视觉高度 */
+  height: auto !important; /* 覆盖可能的 height:100% */
+  padding: 18px;
+  margin: 0;               /* 由 grid gap 控制间距 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative !important; /* 防止绝对定位导致重叠 */
+  transition:
+    box-shadow 0.35s cubic-bezier(.2,.9,.2,1),
+    transform 0.35s cubic-bezier(.2,.9,.2,1),
+    outline 0.25s ease,
+    outline-offset 0.25s ease;
+}
+
+/* 防止子元素使用负 margin 导致覆盖 */
+.grid-3 > * { margin: 0 !important; }
+
+/* ---------- 最后保护：避免视觉重叠的极端情况 ---------- */
+.grid-3 > *:not(:last-child) { /* 在极端布局下额外保证底部间距 */
+  margin-bottom: 0 !important;
+}
+/* ---------- 表格容器：允许横向滚动以防列被压扁 ---------- */
+.compare-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---------- 桌面表格：固定布局，自动换行，最小宽度保障 ---------- */
+.compare-table {
+  width: 100%;
+  min-width: 760px;            /* 根据列数调整最小宽度 */
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;         /* 固定列宽，避免列塌陷 */
+  word-break: break-word;
+  hyphens: auto;
+  transition: all 0.5s ease;
+}
+
+.compare-table:hover{box-shadow:  0 0 12px rgba(255,255,255,0.55),  0 0 24px rgba(255,255,255,0.35),  0 0 48px rgba(255,255,255,0.18);transform: translateY(-2px);transition: box-shadow 0.5s ease, transform 0.5s ease;}
+
+/* 表头与单元格样式微调 */
+.compare-table thead th {
+  padding: 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+.compare-table td {
+  padding: 12px;
+  vertical-align: top;
+  white-space: normal;         /* 允许换行 */
+}
+
+/* 行间隔与背景 */
+.compare-table tbody tr + tr { 
+  border-top: 1px solid rgba(255,255,255,0.02);
+}
+
+/* ---------- 响应式：窄屏时切换为卡片式展示（安全覆盖） ---------- */
+@media (max-width: 980px) {
+  /* 隐藏原始表头，改为卡片式展示 */
+  .compare-table thead { display: none !important; }
+
+  .compare-table, 
+  .compare-table tbody, 
+  .compare-table tr, 
+  .compare-table td {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .compare-table tr {
+    margin-bottom: 14px;
+    padding: 12px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+    border: 1px solid rgba(255,255,255,0.02);
+  }
+
+  .compare-table td {
+    padding: 10px 12px !important;
+    border: none !important;
+  }
+
+  /* 使用 data-label 显示列名（确保 HTML 中每个 td 有 data-label） */
+  .compare-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: rgba(230,238,248,0.9);
+  }
+}
+
+/* ---------- 兼容性保护：覆盖内联样式或脚本设置 ---------- */
+.compare-table, .compare-table * {
+  box-sizing: border-box !important;
+}
+
+/* ---------- 可选：当容器宽度小于最小宽度时显示提示（UX） ---------- */
+.compare-table-wrapper:after {
+  content: "";
+  display: block;
+  height: 0;
+  clear: both;
+}
+
+/* 即将推出 标签：小巧、倾斜、色彩渐变与呼吸动画 */
+.coming-soon {
+  display: inline-block;
+  margin-left: 12px;
+  padding: 4px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  border-radius: 12px;
+  transform: rotate(-12deg);
+  transform-origin: left center;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.04) inset;
+  background: linear-gradient(90deg, #ff6a88, #ff9a66, #ffd166);
+  background-size: 300% 100%;
+  animation: gradientShift 3.5s linear infinite, pulse 2.6s ease-in-out infinite;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse {
+  0%,100% { transform: rotate(-12deg) scale(1); }
+  50% { transform: rotate(-12deg) scale(1.06); }
+}
+</style>
+</head>
+<body>
+<!-- 光感层：通过 JS 更新 CSS 变量实现跟随与平滑 -->
+<div class="light-layer" id="lightLayer" aria-hidden="true"></div>
+
+<canvas id="particles"></canvas>
+<div class="container">
+  <header>
+    <div class="brand">
+      <div class="logo"><img src="path/to/your/logo.png" alt="NicCent Logo"></div>
+      <div>
+        <div style="font-weight:700">NicCent</div>
+        <div class="muted" style="font-size:12px">Open Extension Ecosystem · Powered by Coly</div>
+      </div>
+    </div>
+    <nav>
+      <button class="btn">Docs</button>
+      <a class="btn primary" href="https://github.com/Necream/NicCent" target="_blank" rel="noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Hero: 大号 ColyServer 视觉中心 -->
+    <section class="hero" aria-label="Hero">
+      <div class="hero-left">
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <h1 style="margin:0;">NicCent</h1>
+          <span class="coming-soon-badge">即将推出</span>
+        </div>
+        <p class="lead" style="margin-top:12px;">State-driven extension runtime for efficient AI integrations.<br><strong>让 AI 休眠，仅在需要时唤醒。</strong></p>
+        <p class="muted">ColyServer 为中心态，PAW 提供 AI 扩展，Scheduler 负责唤醒与调度，所有能力通过 ColyVar 协作。</p>
+        <div style="margin-top:18px;display:flex;gap:12px;">
+          <a class="btn primary" href="#get-started">快速开始</a>
+          <a class="btn" href="#architecture">查看架构</a>
+          <a class="btn" href="#paw">了解 PAW</a>
+        </div>
+      </div>
+
+      <div class="hero-visual" style="display: none;">
+        <div class="orb-wrap" role="img" aria-label="ColyServer visual">
+          <canvas id="heroNetwork" style="position:absolute;inset:0;"></canvas>
+          <div class="orb-center">ColyServer</div>
+          <div class="orb-sub">State Center · Runtime</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 简短介绍 -->
+    <section id="what">
+      <h3>核心理念</h3>
+      <p class="muted">NicCent 不是 Agent 框架，也不是传统的 MCP 请求-响应系统。它是一个以 <strong>共享状态（ColyVar）</strong> 为中心的扩展生态：状态变化触发扩展协作，AI 仅在需要时被唤醒以完成任务。</p>
+    </section>
+
+    <!-- PAW -->
+    <section id="paw">
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <h3 style="margin:0;">PAW — Powerful AI Widget</h3>
+        <span class="coming-soon-badge">在NicCent发布后可用</span>
+      </div>
+      <p class="muted">PAW 是 AI 扩展运行时，模型由扩展提供而非内置。支持 OpenAI、DeepSeek、Claude、Qwen、Gemini、以及本地模型适配器。</p>
+      <div class="grid-3" style="margin-top:12px;">
+        <div class="card"><strong>Model Agnostic</strong><div class="small-muted">扩展提供模型，运行时保持中立。</div></div>
+        <div class="card"><strong>Sandboxed</strong><div class="small-muted">隔离执行，受控资源使用。</div></div>
+        <div class="card"><strong>Event-driven</strong><div class="small-muted">由 ColyVar 变化与 Scheduler 事件触发。</div></div>
+      </div>
+    </section>
+
+    <!-- Architecture + Network -->
+    <section id="architecture">
+      <h3>架构概览</h3>
+      <p class="muted" >这张图展示了 NicCent 的整体架构，其中心是 ColyServer，周围环绕着 PAW、Scheduler 等核心组件。</p>
+      <div style="margin-top:18px" class="network-wrap">
+        <canvas id="networkLarge" style="height:100%;"></canvas>
+      </div>
+    </section>
+
+    <!-- 比较表（清晰版本） -->
+    <section id="compare">
+      <h3>架构对比</h3>
+      <p class="muted">下面对比三种常见模式的关键维度，帮助理解您 NicCent 的定位。</p>
+
+      <table class="compare-table" aria-label="Architecture comparison">
+        <thead>
+          <tr>
+            <th>Pattern</th>
+            <th>触发方式</th>
+            <th>运行模型</th>
+            <th>资源消耗</th>
+            <th>协作模式</th>
+            <th>最佳场景</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-label="Pattern"><strong>MCP</strong></td>
+            <td data-label="触发方式">单次外部请求触发</td>
+            <td data-label="运行模型">按请求短时调用</td>
+            <td data-label="资源消耗">低到中（按需）</td>
+            <td data-label="协作模式">单次工具链调用</td>
+            <td data-label="最佳场景">即时问答、工具链式任务</td>
+          </tr>
+          <tr>
+            <td data-label="Pattern"><strong>Agent</strong></td>
+            <td data-label="触发方式">常驻进程或长期任务触发</td>
+            <td data-label="运行模型">常驻智能（持续运行）</td>
+            <td data-label="资源消耗">高（长期占用）</td>
+            <td data-label="协作模式">单体或内部多模块协作</td>
+            <td data-label="最佳场景">长期代理、持续监控与决策</td>
+          </tr>
+          <tr>
+            <td data-label="Pattern"><strong>NicCent</strong></td>
+            <td data-label="触发方式">ColyVar 状态变化 / 调度器事件</td>
+            <td data-label="运行模型">按事件唤醒（AI 睡眠）</td>
+            <td data-label="资源消耗">低（事件驱动）</td>
+            <td data-label="协作模式">多扩展基于共享状态协作</td>
+            <td data-label="最佳场景">低成本可组合扩展生态、按需 AI 调用</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="small-muted" style="margin-top:10px;display: none;">短句：MCP — 按请求调用工具；Agent — 常驻代理；NicCent — 状态驱动、按需唤醒、模块化协作。</p>
+    </section>
+
+    <!-- Scheduler -->
+    <section id="scheduler">
+      <h3>Schedules模式</h3>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;">
+        <div class="card" style="flex:1;min-width:260px;">
+          <strong>AI Should Sleep</strong>
+          <div class="small-muted" style="margin-top:8px">Scheduler 根据 ColyVar 变化、时间事件或系统信号触发扩展。无轮询、低资源消耗。</div>
+        </div>
+        <div class="card" style="min-width:260px;">
+          <strong>触发类型</strong>
+          <div class="small-muted" style="margin-top:8px">ColyVar的变化</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- State -->
+    <section id="state">
+      <h3>信息媒介 — ColyVar</h3>
+      <p class="muted">一切皆为 ColyVar。扩展订阅状态变化并执行处理，保证协调与一致性。</p>
+      <div class="grid-3" style="margin-top:12px;">
+        <div class="card"><strong>ColyVar</strong><div class="small-muted">类型化、可版本、可观察的状态对象。</div></div>
+        <div class="card"><strong>Reactivity</strong><div class="small-muted">扩展订阅事件并运行处理器。</div></div>
+        <div class="card"><strong>Consistency</strong><div class="small-muted">运行时保证确定性状态转换。</div></div>
+      </div>
+    </section>
+
+    <!-- 开放生态（已移除 DiskGuard / MemoryOcean / ThermalSense / Your Extension） -->
+    <section id="ecosystem">
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <h3 style="margin:0;">开放生态</h3>
+        <span class="coming-soon-badge">在NicCent发布后可用</span>
+      </div>
+      <p class="muted">核心扩展与社区插件共同构成 NicCent 生态。</p>
+      <div class="grid-3" style="margin-top:12px;">
+        <div class="rainbow-card">PAW — AI 扩展运行时</div>
+        <div class="rainbow-card">Scheduler — 事件驱动调度</div>
+        <div class="rainbow-card">MCP Adapter — 兼容适配器</div>
+        <div class="rainbow-card">Your Extension - 自定义扩展</div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <h3>Roadmap</h3>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div class="card" style="min-width:220px"><strong>MCP Adapter</strong><div class="small-muted">桥接现有 MCP 工具</div></div>
+        <div class="card" style="min-width:220px"><strong>Extension Marketplace</strong><div class="small-muted">发现与安装扩展</div></div>
+        <div class="card" style="min-width:220px"><strong>Cross Devices</strong><div class="small-muted">可跨设备运行（同步与无缝切换）</div></div>
+        <div class="card" style="min-width:220px"><strong>Cross-platform runtime</strong><div class="small-muted">桌面、服务器、边缘</div></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    NicCent · Open Extension Ecosystem · Built on Coly · © 2026
+  </footer>
+</div>
+
+<script>
+/* ---------------------------
+   光感效果（跟随鼠标）
+   - 使用 CSS 变量控制位置、大小与透明度
+   - 平滑跟随（lerp）
+   --------------------------- */
+(function(){
+  const layer = document.getElementById('lightLayer');
+  // 初始参数，可按需调整
+  const lightRadius = 520;        // 基础直径（px）
+  const maxOpacity = 0.85;        // 最大不透明度
+  const followSpeed = 0.18;       // 跟随平滑速度（0-1）
+  const idleFade = 800;           // 鼠标离开后淡出时间（ms）
+
+  // 状态
+  let targetX = window.innerWidth / 2;
+  let targetY = window.innerHeight / 2;
+  let currentX = targetX;
+  let currentY = targetY;
+  let targetOpacity = 0;
+  let currentOpacity = 0;
+  let lastMoveTs = 0;
+  let rafId = null;
+
+  // 初始化 CSS 变量
+  function applyVars(){
+    layer.style.setProperty('--light-size', Math.max(220, lightRadius + (Math.sin(Date.now()/1200)*40)) + 'px');
+    layer.style.setProperty('--light-x', (currentX) + 'px');
+    layer.style.setProperty('--light-y', (currentY) + 'px');
+    layer.style.setProperty('--light-opacity', currentOpacity.toFixed(3));
+    layer.style.opacity = Math.min(1, currentOpacity * 1.05);
+  }
+
+  // 线性插值
+  function lerp(a,b,t){ return a + (b - a) * t; }
+
+  function loop(){
+    currentX = lerp(currentX, targetX, followSpeed);
+    currentY = lerp(currentY, targetY, followSpeed);
+    currentOpacity = lerp(currentOpacity, targetOpacity, 0.12);
+    applyVars();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  // 鼠标移动事件
+  function onMove(e){
+    targetX = e.clientX;
+    targetY = e.clientY;
+    targetOpacity = maxOpacity;
+    lastMoveTs = Date.now();
+    // 立即显示层（避免延迟）
+    layer.style.opacity = Math.min(1, targetOpacity);
+  }
+
+  // 触摸事件（移动端）
+  function onTouch(e){
+    if (!e.touches || e.touches.length === 0) return;
+    const t = e.touches[0];
+    targetX = t.clientX;
+    targetY = t.clientY;
+    targetOpacity = Math.min(maxOpacity, 0.7);
+    lastMoveTs = Date.now();
+  }
+
+  // 鼠标离开淡出
+  function checkIdle(){
+    const now = Date.now();
+    if (now - lastMoveTs > idleFade){
+      targetOpacity = 0;
+    }
+    requestAnimationFrame(checkIdle);
+  }
+
+  // 启动
+  window.addEventListener('mousemove', onMove, {passive:true});
+  window.addEventListener('touchmove', onTouch, {passive:true});
+  window.addEventListener('touchstart', onTouch, {passive:true});
+  window.addEventListener('mouseleave', ()=>{ targetOpacity = 0; }, {passive:true});
+  window.addEventListener('blur', ()=>{ targetOpacity = 0; }, {passive:true});
+
+  // 初始变量
+  applyVars();
+  loop();
+  checkIdle();
+
+  // 在窗口大小变化时更新目标位置（避免偏移）
+  window.addEventListener('resize', ()=>{
+    targetX = Math.min(window.innerWidth, targetX);
+    targetY = Math.min(window.innerHeight, targetY);
+  });
+})();
+
+/* ---------------------------
+   Network graph data (JSON)
+   --------------------------- */
+const networkData = {
+  nodes: [
+    { id: 'colyserver', label: 'ColyServer', type: 'core', size: 28, color: ['#6ee7ff','#9b7bff'] },
+    { id: 'paw', label: 'PAW', type: 'service', size: 18, color: ['#7ee7b8','#6ee7ff'] },
+    { id: 'scheduler', label: 'Scheduler', type: 'service', size: 18, color: ['#ffd86b','#ff7ab6'] },
+    { id: 'mcp_adapter', label: 'MCP Adapter', type: 'ext', size: 14, color: ['#6b7280','#9b7bff'] },
+    { id: 'ext_a', label: 'Extension A', type: 'ext', size: 12, color: ['#6b7280','#7ee7b8'] },
+    { id: 'ext_b', label: 'Extension B', type: 'ext', size: 12, color: ['#6b7280','#ffd86b'] }
+  ],
+  links: [
+    { source: 'colyserver', target: 'paw', weight: 1 },
+    { source: 'colyserver', target: 'scheduler', weight: 1 },
+    { source: 'paw', target: 'ext_a', weight: 0.6 },
+    { source: 'paw', target: 'ext_b', weight: 0.6 },
+    { source: 'scheduler', target: 'mcp_adapter', weight: 0.5 }
+  ]
+};
+
+/* ---------------------------
+   Simple Canvas Network Renderer
+   --------------------------- */
+function createNetwork(canvas, data) {
+  const ctx = canvas.getContext('2d');
+  const DPR = devicePixelRatio || 1;
+  function resize() {
+    canvas.width = canvas.clientWidth * DPR;
+    canvas.height = canvas.clientHeight * DPR;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(DPR, DPR);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const nodes = data.nodes.map(n => ({
+    ...n,
+    x: (Math.random()*0.6+0.2) * canvas.clientWidth,
+    y: (Math.random()*0.6+0.2) * canvas.clientHeight,
+    vx: 0, vy: 0,
+    activity: 0
+  }));
+  const nodeById = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const links = data.links.map(l => ({...l, source: nodeById[l.source], target: nodeById[l.target]}));
+
+  let mouse = {x:-9999,y:-9999};
+  let hoverNode = null;
+
+  function hexToRgba(hex, a=1){
+    const h = hex.replace('#','');
+    const bigint = parseInt(h,16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function step() {
+    for (let i=0;i<nodes.length;i++){
+      const a = nodes[i];
+      for (let j=i+1;j<nodes.length;j++){
+        const b = nodes[j];
+        let dx = a.x - b.x, dy = a.y - b.y;
+        let dist = Math.sqrt(dx*dx+dy*dy) || 1;
+        let minDist = (a.size + b.size) * 2;
+        let force = (minDist - dist) * 0.002;
+        if (dist < minDist) {
+          a.vx += (dx/dist) * force;
+          a.vy += (dy/dist) * force;
+          b.vx -= (dx/dist) * force;
+          b.vy -= (dy/dist) * force;
+        }
+      }
+    }
+    links.forEach(l=>{
+      const s = l.source, t = l.target;
+      let dx = t.x - s.x, dy = t.y - s.y;
+      let dist = Math.sqrt(dx*dx+dy*dy) || 1;
+      let desired = 120 * (1 + (1 - l.weight));
+      let k = 0.0015 * (1 + l.weight);
+      let fx = dx/dist * (dist - desired) * k;
+      let fy = dy/dist * (dist - desired) * k;
+      s.vx += fx; s.vy += fy;
+      t.vx -= fx; t.vy -= fy;
+    });
+
+    nodes.forEach(n=>{
+      let dx = mouse.x - n.x, dy = mouse.y - n.y;
+      let d = Math.sqrt(dx*dx+dy*dy) || 1;
+      if (d < 120) {
+        n.vx += dx/d * 0.02;
+        n.vy += dy/d * 0.02;
+      }
+      n.vx *= 0.92; n.vy *= 0.92;
+      n.x += n.vx; n.y += n.vy;
+      n.x = Math.max(20, Math.min(canvas.clientWidth-20, n.x));
+      n.y = Math.max(20, Math.min(canvas.clientHeight-20, n.y));
+      n.activity = Math.max(0, n.activity - 0.01);
+    });
+
+    if (Math.random() < 0.02) {
+      const idx = Math.floor(Math.random()*nodes.length);
+      nodes[idx].activity = Math.min(1, nodes[idx].activity + 0.6);
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+    links.forEach(l=>{
+      const s = l.source, t = l.target;
+      const grad = ctx.createLinearGradient(s.x, s.y, t.x, t.y);
+      grad.addColorStop(0, 'rgba(110,231,255,0.06)');
+      grad.addColorStop(1, 'rgba(155,123,255,0.04)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1 + l.weight*1.5;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      const cx = (s.x + t.x)/2 + (t.y - s.y)*0.08;
+      const cy = (s.y + t.y)/2 + (s.x - t.x)*0.08;
+      ctx.quadraticCurveTo(cx, cy, t.x, t.y);
+      ctx.stroke();
+    });
+
+    nodes.forEach(n=>{
+      const pulse = 1 + Math.sin(Date.now()/400 + n.activity*6) * 0.08 + n.activity*0.6;
+      const r = (n.size || 12) * pulse;
+      const g = ctx.createRadialGradient(n.x, n.y, r*0.2, n.x, n.y, r*2.2);
+      const c1 = (n.color && n.color[0]) || '#6ee7ff';
+      const c2 = (n.color && n.color[1]) || '#9b7bff';
+      g.addColorStop(0, hexToRgba(c1, 0.28 + n.activity*0.4));
+      g.addColorStop(1, hexToRgba(c2, 0.02));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r*1.6, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.fillStyle = n.type === 'core' ? c1 : (n.type === 'service' ? c2 : '#9aa0a6');
+      ctx.globalAlpha = 0.98;
+      ctx.arc(n.x, n.y, n.size, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      if (hoverNode === n || n.type === 'core') {
+        ctx.font = '12px Inter, Arial';
+        ctx.fillStyle = 'rgba(230,238,248,0.95)';
+        ctx.fillText(n.label, n.x + n.size + 8, n.y + 4);
+      }
+    });
+  }
+
+  function loop(){
+    step();
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  canvas.addEventListener('mousemove', e=>{
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = (e.clientX - rect.left);
+    mouse.y = (e.clientY - rect.top);
+    hoverNode = null;
+    for (let n of nodes){
+      const dx = mouse.x - n.x, dy = mouse.y - n.y;
+      if (Math.sqrt(dx*dx+dy*dy) < n.size*1.6) { hoverNode = n; break; }
+    }
+  });
+  canvas.addEventListener('mouseleave', ()=>{ mouse.x = -9999; mouse.y = -9999; hoverNode = null; });
+  window.addEventListener('resize', ()=>{
+    resize();
+  });
+
+  return { nodes, links };
+}
+
+/* init hero mini network */
+const heroCanvas = document.getElementById('heroNetwork');
+createNetwork(heroCanvas, {
+  nodes: [
+    { id: 'colyserver', label: 'ColyServer', type: 'core', size: 28, color: ['#6ee7ff','#9b7bff'] },
+    { id: 'paw', label: 'PAW', type: 'service', size: 14, color: ['#7ee7b8','#6ee7ff'] },
+    { id: 'scheduler', label: 'Scheduler', type: 'service', size: 14, color: ['#ffd86b','#ff7ab6'] },
+    { id: 'ext_a', label: 'Ext A', type: 'ext', size: 10, color: ['#6b7280','#7ee7b8'] },
+    { id: 'ext_b', label: 'Ext B', type: 'ext', size: 10, color: ['#6b7280','#ffd86b'] }
+  ],
+  links: [
+    { source: 'colyserver', target: 'paw', weight: 1 },
+    { source: 'colyserver', target: 'scheduler', weight: 1 },
+    { source: 'paw', target: 'ext_a', weight: 0.6 },
+    { source: 'paw', target: 'ext_b', weight: 0.6 }
+  ]
+});
+
+/* init large network */
+const netCanvasLarge = document.getElementById('networkLarge');
+createNetwork(netCanvasLarge, networkData);
+
+/* particles background */
+(function particlesBG(){
+  const c = document.getElementById('particles');
+  const ctx = c.getContext('2d');
+  function resize(){ c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+  resize(); window.addEventListener('resize', resize);
+  const pts = Array.from({length:80}, ()=>({
+    x: Math.random()*innerWidth,
+    y: Math.random()*innerHeight,
+    vx: (Math.random()-0.5)*0.2,
+    vy: (Math.random()-0.5)*0.2,
+    r: Math.random()*1.6+0.6
+  }));
+  function draw(){
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    for (let p of pts){
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < -20) p.x = innerWidth+20;
+      if (p.x > innerWidth+20) p.x = -20;
+      if (p.y < -20) p.y = innerHeight+20;
+      if (p.y > innerHeight+20) p.y = -20;
+      ctx.beginPath();
+      const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*8);
+      g.addColorStop(0, `rgba(110,231,255,0.06)`);
+      g.addColorStop(1, `rgba(155,123,255,0)`);
+      ctx.fillStyle = g;
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* Smooth scroll for anchor links */
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click', e=>{
+    e.preventDefault();
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) t.scrollIntoView({behavior:'smooth',block:'start'});
+  });
+});
+</script>
+</body>
+</html>

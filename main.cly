@@ -1,0 +1,188 @@
+# Initialize Environment Vars
+define var named Input
+define var named InputLine
+define var named NicCent:Version with 0.1.0
+define var named NicCent:CoreColyVersion with 1.9.3
+define var named NicCent:MainCloseSign with false
+define var named true with true
+define var named false with false
+# Print version information
+print Welcome to NicCent!
+print NicCent Version: $NicCent:Version
+print Initializing NiCentFramework Environment...
+# Start initializing Framework
+
+# ASCII Kit
+print Initializing NiCentFramework Environment...(ASCIIKit)
+define privatecode named NicCentFramework:ASCIIKit:InitCode with Python
+|import ColyPythonSync
+|import sys
+|argv=sys.argv
+|if not ColyPythonSync.InitColySyncService(argv):
+|    exit()
+|for i in range(128):
+|    ColyPythonSync.ColySyncString("ASCII["+str(i)+"]",str(chr(i)))
+use NicCentFramework:ASCIIKit:InitCode
+# exit
+# TEST AND EXAMPLE
+# print $ASCII[65]
+# print $ASCII[36]
+
+# Call Kit
+print Initializing NiCentFramework Environment...(CallKit)
+define var named NicCentFramework:CallKit:CallCommand with NULL
+define code named NicCentFramework:CallKit:CallCode with Coly
+|define privatevar named Call:needcompile with false
+|define privatevar named Call:extension with .txt
+|define privatevar named Call:run with $NicCentFramework:CallKit:CallCommand
+|define privatecode named Private_CallCommand with Call
+|use Private_CallCommand
+define function named CALL with NicCentFramework:CallKit:CallCode NicCentFramework:CallKit:CallCommand
+### TEST AND EXAMPLE
+# define privatevar named Command with start cmd
+# NicCentFramework:CallKit:Call $Command
+
+# WaitKit
+print Initializing NiCentFramework Environment...(WaitKit)
+define code named NicCentFramework:WaitKit:WaitTimeMain with Python
+|import ColyPythonSync
+|import sys
+|import time
+|argv=sys.argv
+|if not ColyPythonSync.InitColySyncService(argv) :
+|    print("Can not link to Server")
+|    exit()
+|WaitTime=ColyPythonSync.ReadColyVar("NicCentFramework:WaitKit:WaitTime").data
+|WaitTime=float(WaitTime)
+|time.sleep(WaitTime)
+define function named WAITTIME with NicCentFramework:WaitKit:WaitTimeMain NicCentFramework:WaitKit:WaitTime
+define code named NicCentFramework:WaitKit:WaitVarMain with Coly
+|define privatevar named Command with define privatevar named initial with $ASCII[36] $NicCentFramework:WaitKit:WaitVarName
+|do $Command
+|define privatevar named Command with define privatevar named now with $ASCII[36] $NicCentFramework:WaitKit:WaitVarName
+|define position named loop
+|do $Command
+|if $now $initial jump loop
+# TODO:
+# define function named WAITVART with NicCentFramework:WaitKit:WaitVarMain NicCentFramework:WaitKit:WaitVarName NicCentFramework:WaitKit:WaitVarTime
+define function named WAITVAR with NicCentFramework:WaitKit:WaitVarMain NicCentFramework:WaitKit:WaitVarName
+
+### TEST AND EXAMPLE
+# WAITTIME 5
+# define var named 123 with 123
+# WAITVAR 123
+# exit
+
+
+
+# Logger
+print Initializing NiCentFramework Environment...(Logger)
+define var named NicCentFramework:Logger:OutputReady with false
+define var named NicCentFramework:Logger:Content with NULL
+define privatecode named NicCentFramework:Logger:Main with Python
+|import ColyPythonSync
+|import time
+|from datetime import datetime
+|import sys
+|argv=sys.argv
+|if not ColyPythonSync.InitColySyncService(argv) :
+|    print("Can not link to Server")
+|    exit()
+|while True:
+|    if ColyPythonSync.ReadColyVar("NicCent:MainCloseSign").data == "true":
+|        exit()
+|    if ColyPythonSync.ReadColyVar("NicCentFramework:Logger:OutputReady").data == "true":
+|        print("[",datetime.now(),"] ",ColyPythonSync.ReadColyVar("NicCentFramework:Logger:Content"),sep='',flush=True)
+|        ColyPythonSync.RegColyVar("NicCentFramework:Logger:OutputReady")
+|    time.sleep(0.1)
+define var named OnlyCompile with true
+use NicCentFramework:Logger:Main
+define var named OnlyCompile with false
+# use NicCentFramework:Logger:Main
+usewithoutwait NicCentFramework:Logger:Main
+define code named NicCentFramework:Logger:CallCode with Coly
+|define position named loop
+|if $NicCentFramework:Logger:OutputReady $true jump loop
+|define var named NicCentFramework:Logger:OutputReady with true
+|define position named loop
+|if $NicCentFramework:Logger:OutputReady $true jump loop
+define function named LOG with NicCentFramework:Logger:CallCode NicCentFramework:Logger:Content
+
+### TEST AND EXAMPLE
+# LOG 12345
+# LOG 2
+
+# Python Loader
+define code named PythonLoader:Main with Python
+|import os
+|import subprocess
+|import sys
+|import time
+|
+|TARGET_DIR = r"C:\NicCent\Python"
+|
+|def main():
+|    if not os.path.isdir(TARGET_DIR):
+|        print(f"Directory not found: {TARGET_DIR}")
+|        sys.exit(1)
+|
+|    py_files = [f for f in os.listdir(TARGET_DIR) if f.endswith(".py")]
+|
+|    if not py_files:
+|        print("No .py files found in", TARGET_DIR)
+|        sys.exit(0)
+|
+|    print(f"Found {len(py_files)} Python file(s), launching...\n")
+|
+|    processes = []
+|    for file in py_files:
+|        filepath = os.path.join(TARGET_DIR, file)
+|        print(f"[Start] {file}")
+|        p = subprocess.Popen(
+|            [sys.executable, filepath],
+|            stdout=subprocess.PIPE,
+|            stderr=subprocess.STDOUT,
+|            text=True,
+|            bufsize=1,
+|        )
+|        processes.append((file, p))
+|
+|    print("\nAll processes launched. Collecting output...\n")
+|
+|    while processes:
+|        for name, proc in processes[:]:
+|            ret = proc.poll()
+|            if ret is not None:
+|                for line in proc.stdout:
+|                    print(f"[{name}] {line}", end="")
+|                print(f"[Exit] {name} (code {ret})\n")
+|                processes.remove((name, proc))
+|
+|        for name, proc in processes:
+|            try:
+|                for line in iter(proc.stdout.readline, ""):
+|                    print(f"[{name}] {line}", end="")
+|            except ValueError:
+|                pass
+|
+|        time.sleep(0.05)
+|
+|    print("All Python scripts finished.")
+|
+|if __name__ == "__main__":
+|    main()
+use PythonLoader:Main
+
+#
+
+
+
+
+
+
+
+
+
+
+define privatevar named NULL with $InputLine
+define var named NicCent:MainCloseSign with true

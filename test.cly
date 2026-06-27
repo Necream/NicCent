@@ -1,0 +1,15 @@
+define var named NicCentFramework:Logger:OutputReady with false
+define var named NicCentFramework:Logger:Content with NULL
+define code named __Logger__Main__ with Python
+|import ColyPythonSync
+|import sys
+|argv=sys.argv
+|print("Logger Main")
+|if not ColyPythonSync.InitColySyncService(argv):
+|    print("Can not link to Server")
+|    exit()
+|print("Not Exit")
+define var named OnlyCompile with true
+use __Logger__Main__
+define var named OnlyCompile with false
+use __Logger__Main__

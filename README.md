@@ -225,4 +225,4 @@ NicCent is built around this idea.
 
 ## 📄 License
 
-TBD (Recommended: Apache-2.0 or MIT)
+Apache-2.0

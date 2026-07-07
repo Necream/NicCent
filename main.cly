@@ -12,6 +12,7 @@ print NicCent Version: $NicCent:Version
 print Initializing NiCentFramework Environment...
 # Start initializing Framework
 
+
 # ASCII Kit
 print Initializing NiCentFramework Environment...(ASCIIKit)
 define privatecode named NicCentFramework:ASCIIKit:InitCode with Python
@@ -23,62 +24,20 @@ define privatecode named NicCentFramework:ASCIIKit:InitCode with Python
 |for i in range(128):
 |    ColyPythonSync.ColySyncString("ASCII["+str(i)+"]",str(chr(i)))
 use NicCentFramework:ASCIIKit:InitCode
+define var named $ with $ASCII[36]
+define var named NULL with $ASCII[0]
 # exit
-# TEST AND EXAMPLE
+
+### TEST AND EXAMPLE
 # print $ASCII[65]
 # print $ASCII[36]
-
-# Call Kit
-print Initializing NiCentFramework Environment...(CallKit)
-define var named NicCentFramework:CallKit:CallCommand with NULL
-define code named NicCentFramework:CallKit:CallCode with Coly
-|define privatevar named Call:needcompile with false
-|define privatevar named Call:extension with .txt
-|define privatevar named Call:run with $NicCentFramework:CallKit:CallCommand
-|define privatecode named Private_CallCommand with Call
-|use Private_CallCommand
-define function named CALL with NicCentFramework:CallKit:CallCode NicCentFramework:CallKit:CallCommand
-### TEST AND EXAMPLE
-# define privatevar named Command with start cmd
-# NicCentFramework:CallKit:Call $Command
-
-# WaitKit
-print Initializing NiCentFramework Environment...(WaitKit)
-define code named NicCentFramework:WaitKit:WaitTimeMain with Python
-|import ColyPythonSync
-|import sys
-|import time
-|argv=sys.argv
-|if not ColyPythonSync.InitColySyncService(argv) :
-|    print("Can not link to Server")
-|    exit()
-|WaitTime=ColyPythonSync.ReadColyVar("NicCentFramework:WaitKit:WaitTime").data
-|WaitTime=float(WaitTime)
-|time.sleep(WaitTime)
-define function named WAITTIME with NicCentFramework:WaitKit:WaitTimeMain NicCentFramework:WaitKit:WaitTime
-define code named NicCentFramework:WaitKit:WaitVarMain with Coly
-|define privatevar named Command with define privatevar named initial with $ASCII[36] $NicCentFramework:WaitKit:WaitVarName
-|do $Command
-|define privatevar named Command with define privatevar named now with $ASCII[36] $NicCentFramework:WaitKit:WaitVarName
-|define position named loop
-|do $Command
-|if $now $initial jump loop
-# TODO:
-# define function named WAITVART with NicCentFramework:WaitKit:WaitVarMain NicCentFramework:WaitKit:WaitVarName NicCentFramework:WaitKit:WaitVarTime
-define function named WAITVAR with NicCentFramework:WaitKit:WaitVarMain NicCentFramework:WaitKit:WaitVarName
-
-### TEST AND EXAMPLE
-# WAITTIME 5
-# define var named 123 with 123
-# WAITVAR 123
-# exit
-
+# Special character
 
 
 # Logger
 print Initializing NiCentFramework Environment...(Logger)
 define var named NicCentFramework:Logger:OutputReady with false
-define var named NicCentFramework:Logger:Content with NULL
+define var named NicCentFramework:Logger:Content with $NULL
 define privatecode named NicCentFramework:Logger:Main with Python
 |import ColyPythonSync
 |import time
@@ -98,7 +57,6 @@ define privatecode named NicCentFramework:Logger:Main with Python
 define var named OnlyCompile with true
 use NicCentFramework:Logger:Main
 define var named OnlyCompile with false
-# use NicCentFramework:Logger:Main
 usewithoutwait NicCentFramework:Logger:Main
 define code named NicCentFramework:Logger:CallCode with Coly
 |define position named loop
@@ -112,77 +70,240 @@ define function named LOG with NicCentFramework:Logger:CallCode NicCentFramework
 # LOG 12345
 # LOG 2
 
-# Python Loader
-define code named PythonLoader:Main with Python
-|import os
-|import subprocess
+
+# Call Kit
+define var named LOGINFO with [ NicCentFramework ] Initializing NiCentFramework Environment...(CallKit)
+LOG $LOGINFO
+define var named NicCentFramework:CallKit:CallCommand with $NULL
+define code named NicCentFramework:CallKit:CallCode with Coly
+|define privatevar named Call:needcompile with false
+|define privatevar named Call:extension with .txt
+|define privatevar named Call:run with $NicCentFramework:CallKit:CallCommand
+|define privatecode named Private_CallCommand with Call
+|use Private_CallCommand
+define function named CALL with NicCentFramework:CallKit:CallCode NicCentFramework:CallKit:CallCommand
+
+### TEST AND EXAMPLE
+# define privatevar named Command with start cmd
+# NicCentFramework:CallKit:Call $Command
+
+
+# WaitKit
+define var named LOGINFO with [ NicCentFramework ] Initializing NiCentFramework Environment...(WaitKit)
+LOG $LOGINFO
+define code named NicCentFramework:WaitKit:WaitTimeMain with Python
+|import ColyPythonSync
 |import sys
 |import time
-|
-|TARGET_DIR = r"C:\NicCent\Python"
-|
-|def main():
-|    if not os.path.isdir(TARGET_DIR):
-|        print(f"Directory not found: {TARGET_DIR}")
-|        sys.exit(1)
-|
-|    py_files = [f for f in os.listdir(TARGET_DIR) if f.endswith(".py")]
-|
-|    if not py_files:
-|        print("No .py files found in", TARGET_DIR)
-|        sys.exit(0)
-|
-|    print(f"Found {len(py_files)} Python file(s), launching...\n")
-|
-|    processes = []
-|    for file in py_files:
-|        filepath = os.path.join(TARGET_DIR, file)
-|        print(f"[Start] {file}")
-|        p = subprocess.Popen(
-|            [sys.executable, filepath],
-|            stdout=subprocess.PIPE,
-|            stderr=subprocess.STDOUT,
-|            text=True,
-|            bufsize=1,
-|        )
-|        processes.append((file, p))
-|
-|    print("\nAll processes launched. Collecting output...\n")
-|
-|    while processes:
-|        for name, proc in processes[:]:
-|            ret = proc.poll()
-|            if ret is not None:
-|                for line in proc.stdout:
-|                    print(f"[{name}] {line}", end="")
-|                print(f"[Exit] {name} (code {ret})\n")
-|                processes.remove((name, proc))
-|
-|        for name, proc in processes:
-|            try:
-|                for line in iter(proc.stdout.readline, ""):
-|                    print(f"[{name}] {line}", end="")
-|            except ValueError:
-|                pass
-|
-|        time.sleep(0.05)
-|
-|    print("All Python scripts finished.")
-|
-|if __name__ == "__main__":
-|    main()
-use PythonLoader:Main
+|argv=sys.argv
+|if not ColyPythonSync.InitColySyncService(argv) :
+|    print("Can not link to Server")
+|    exit()
+|WaitTime=ColyPythonSync.ReadColyVar("NicCentFramework:WaitKit:WaitTime").data
+|WaitTime=float(WaitTime)
+|time.sleep(WaitTime)
+define function named WAITTIME with NicCentFramework:WaitKit:WaitTimeMain NicCentFramework:WaitKit:WaitTime
+define code named NicCentFramework:WaitKit:WaitVarMain with Coly
+|define privatevar named Command with define privatevar named initial with $ASCII[36] $NicCentFramework:WaitKit:WaitVarName
+|do $Command
+|define privatevar named Command with define privatevar named now with $ASCII[36] $NicCentFramework:WaitKit:WaitVarName
+|define position named loop
+|do $Command
+|if $now $initial jump loop
+# define function named WAITVART with NicCentFramework:WaitKit:WaitVarMain NicCentFramework:WaitKit:WaitVarName NicCentFramework:WaitKit:WaitVarTime
+define function named WAITVAR with NicCentFramework:WaitKit:WaitVarMain NicCentFramework:WaitKit:WaitVarName
 
-#
+### TEST AND EXAMPLE
+# WAITTIME 5
+# define var named 123 with 123
+# WAITVAR 123
+# exit
 
 
 
+# ExtensionsLoader
+define var named LOGINFO with [ NicCentFramework ] Initializing NiCentFramework Environment...(ExtensionsLoader)
+LOG $LOGINFO
+# define var named C++:compilerun with cl /nologo /std:c++20 /I"C:\Coly\VariableSyncLib" /utf-8 /EHsc $$  /Fe:^.exe
+define code named ExtensionsLoader with C++
+|#include <iostream>
+|#include <queue>
+|#include <vector>
+|#include <string>
+|#include <filesystem>
+|#include <fstream>
+|#include <ColyCppSync.hpp>
+|#include <GXPass.hpp>
+|#include <Windows.h>
+|using namespace std;
+|namespace fs = std::filesystem;
+|static string ReadFirstLine(const string& path) {
+|    ifstream in(path);
+|    string line;
+|    if (in && getline(in, line)) {
+|        if (!line.empty() && line.back() == '\r') {
+|            line.pop_back();
+|        }
+|        return line;
+|    }
+|    return "";
+|}
+|static bool WriteTextFile(const string& path, const string& content) {
+|    ofstream out(path, ios::trunc);
+|    if (!out) {
+|        return false;
+|    }
+|    out << content;
+|    return out.good();
+|}
+|int main(int argc, char* argv[]) {
+|    InitColySyncService();
+|    const string extensionsPath = "C:\\NicCent\\Extensions";
+|    const string hashPath = extensionsPath + "\\ExtensionsListHash.txt";
+|    const string loadOrderPath = extensionsPath + "\\LoadOrder.txt";
+|    vector<string> extensionPaths;
+|    for (const auto& entry : fs::directory_iterator(extensionsPath)) {
+|        if (entry.path().extension() == ".etipack") {
+|            cout << entry.path().filename().string() << endl;
+|            extensionPaths.push_back(entry.path().string());
+|        }
+|    }
+|    string OriginHash;
+|    for (const auto& extPath : extensionPaths) {
+|        OriginHash += extPath;
+|    }
+|    string nowHash = GXPass::fullsafe(OriginHash);
+|    string lastHash = ReadFirstLine(hashPath);
+|    if (nowHash != lastHash) {
+|        FILE *stream=fopen("C:\\NicCent\\Extensions\\ExtensionsListHash.txt", "w");
+|        if(stream!=NULL){
+|            fputs(nowHash.c_str(), stream);
+|            fclose(stream);
+|        }else{
+|            cout << "Failed to write hash to file." << endl;
+|            RegColyVar(ExtensionListHashWriteStatus);
+|            ExtensionListHashWriteStatus = "fail";
+|            return 1;
+|        }
+|        cout << "Found " << extensionPaths.size() << " extensions." << endl;
+|        vector<string> loadedPaths;
+|        bool anyFailed = false;
+|        for (const auto& extPath : extensionPaths) {
+|            cout << "Loading extension: " << extPath << endl;
+|            RegColyVar(ExtensionPath);
+|            ExtensionPath = extPath;
+|            RegColyVar(ExtensionLoadStatus);
+|            ExtensionLoadStatus = "import";
+|            do {
+|                ReadColyVar(ExtensionLoadStatus); // "processing"
+|                if (ExtensionLoadStatus.data == "success") {
+|                    cout << "Extension (" << extPath << ") loaded successfully." << endl;
+|                    loadedPaths.push_back(extPath);
+|                    break;
+|                } else if (ExtensionLoadStatus.data == "fail") {
+|                    cout << "Extension (" << extPath << ") loading failed." << endl;
+|                    anyFailed = true;
+|                    break;
+|                }
+|                Sleep(100);
+|            } while (true);
+|        }
+|        if (anyFailed && loadedPaths.size() != extensionPaths.size()) {
+|            cout << "Some extensions failed to load. Please check the log for more information." << endl;
+|        }
+|        string finalLoadOrder;
+|        for (const auto& extPath : loadedPaths) {
+|            finalLoadOrder += extPath;
+|            finalLoadOrder += '\n';
+|        }
+|        if (!WriteTextFile(loadOrderPath, finalLoadOrder)) {
+|            cout << "Failed to write load order to file." << endl;
+|            RegColyVar(LoadOrderWriteStatus);
+|            LoadOrderWriteStatus = "fail";
+|            return 1;
+|        }
+|    } else {
+|        ifstream in(loadOrderPath);
+|        if (!in) {
+|            cout << "Failed to read load order from file." << endl;
+|            RegColyVar(LoadOrderReadStatus);
+|            LoadOrderReadStatus = "fail";
+|            return 1;
+|        }
+|        vector<string> loadOrder;
+|        string line;
+|        while (getline(in, line)) {
+|            if (!line.empty() && line.back() == '\r') {
+|                line.pop_back();
+|            }
+|            if (!line.empty()) {
+|                loadOrder.push_back(line);
+|            }
+|        }
+|        for (const auto& extPath : loadOrder) {
+|            RegColyVar(ExtensionPath);
+|            ExtensionPath = extPath;
+|            RegColyVar(ExtensionLoadStatus);
+|            ExtensionLoadStatus = "import";
+|            do {
+|                ReadColyVar(ExtensionLoadStatus); // "processing"
+|                if (ExtensionLoadStatus.data == "success") {
+|                    cout << "Extension (" << extPath << ") loaded successfully." << endl;
+|                    break;
+|                } else if (ExtensionLoadStatus.data == "fail") {
+|                    cout << "Extension (" << extPath << ") loading failed." << endl;
+|                    break;
+|                }
+|                Sleep(100);
+|            } while (true);
+|        }
+|    }
+|    RegColyVar(ExtensionsLoadComplete);
+|    ExtensionsLoadComplete = "true";
+|    return 0;
+|}
+define var named LOGINFO with [ ExtensionsLoader ] Initializing Environment...
+LOG $LOGINFO
+define var named ExtensionLoadStatus with $NULL
+define var named ExtensionsLoadComplete with $NULL
+define var named ExtensionPath with $NULL
+define var named OnlyCompile with true
+use ExtensionsLoader
+define var named OnlyCompile with false
+usewithoutwait ExtensionsLoader
+define privatevar named import with import
+define privatevar named fail with fail
+define var named LoadOrderReadStatus with $NULL
+define var named LoadOrderWriteStatus with $NULL
+define var named ExtensionListHashWriteStatus with $NULL
+define var named ExtensionListHashReadStatus with $NULL
+define var named LOGINFO with [ ExtensionsLoader ] Loading Extensions...
+LOG $LOGINFO
+define position named loop
+if $ExtensionLoadStatus $import print Importing extension: $ExtensionPath
+if $ExtensionLoadStatus $import do import lib $ExtensionPath
+WAITTIME 0.1
+if $LoadOrderReadStatus $fail print Can not read LoadOrder.txt, about to exit.
+if $LoadOrderReadStatus $fail define var named NicCent:MainCloseSign with true
+if $LoadOrderReadStatus $fail exit
+if $LoadOrderWriteStatus $fail print Can not write to LoadOrder.txt, about to exit.
+if $LoadOrderWriteStatus $fail define var named NicCent:MainCloseSign with true
+if $LoadOrderWriteStatus $fail exit
+if $ExtensionListHashWriteStatus $fail print Can not write to ExtensionListHash.txt, about to exit.
+if $ExtensionListHashWriteStatus $fail define var named NicCent:MainCloseSign with true
+if $ExtensionListHashWriteStatus $fail exit
+if $ExtensionListHashReadStatus $fail print Can not read ExtensionListHash.txt, about to exit.
+if $ExtensionListHashReadStatus $fail define var named NicCent:MainCloseSign with true
+if $ExtensionListHashReadStatus $fail exit
+ifn $ExtensionsLoadComplete $true jump loop
+define var named LOGINFO with [ ExtensionsLoader ] Loading Extensions Complete.
+LOG $LOGINFO
 
-
-
-
-
-
-
-define privatevar named NULL with $InputLine
+### END
+define privatevar named checkinfo with exit
+define position named loop
+print Input 'exit' to exit.
+define var named inputinfo with $Input
+ifn $inputinfo $checkinfo do $inputinfo
+ifn $inputinfo $checkinfo jump loop
 define var named NicCent:MainCloseSign with true
